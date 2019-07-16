@@ -1,0 +1,40 @@
+version: "3"
+services:
+  jobmanager:
+    image: ${FLINK_DOCKER_IMAGE_NAME:-flink}
+    expose:
+      - "6123"
+    ports:
+      - "8081:8081"
+    command: jobmanager
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+
+  taskmanager:
+    image: ${FLINK_DOCKER_IMAGE_NAME:-flink}
+    expose:
+      - "6121"
+      - "6122"
+    depends_on:
+      - jobmanager
+    command: taskmanager
+#    other services aliasing should be enabled by default
+#    links:
+#      - "jobmanager:jobmanager"
+#      - "kafka:kafka"
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+  kafka: # kafka + zoo-keeper
+    image: spotify/kafka
+    ports:
+      - "2181:2181" # zoo-keeper port
+      - "9092:9092" # broker port
+  kafdrop: # kafka UI
+    image: thomsch98/kafdrop
+    ports:
+      - "9010:9010"
+    environment:
+      - ZK_HOSTS=kafka:2181
+      - LISTEN=9010
+    logging:
+      driver: journald

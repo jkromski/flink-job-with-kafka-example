@@ -1,18 +1,17 @@
 package com.invinsec.flinkjobwithkafkaexample;
 
 
-import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.serialization.SimpleStringSchema;
-import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
-import org.apache.flink.util.Collector;
 
+import javax.annotation.Nullable;
 import java.util.Properties;
 
 
@@ -36,12 +35,30 @@ public class WordAlertFlinkJob {
     final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
     final String kafkaServer = "localhost:9092";
 
-    // get input data by connecting to the socket
-    DataStreamSource eventsSource = env.addSource(getKafkaStreamConsumer(EVENT_QUEUE_NAME, kafkaServer));
+    // get input data by connecting to the kafka
+    DataStreamSource eventsSource = env.addSource(
+        getKafkaStreamConsumer(EVENT_QUEUE_NAME, kafkaServer, new WordValueDeserializationSchema())
+    );
     eventsSource.name("events").uid("events-source");
+    eventsSource.keyBy("word");
 
-    DataStreamSource controlSource = env.addSource(getKafkaStreamConsumer(CONTROL_QUEUE_NAME, kafkaServer));
+    DataStreamSource controlSource = env.addSource(
+        getKafkaStreamConsumer(CONTROL_QUEUE_NAME, kafkaServer, new WordValueDeserializationSchema())
+    );
     controlSource.name("controls").uid("controls-source");
+
+    MapStateDescriptor<String, WordValue> stateDescriptor = new MapStateDescriptor<>(
+        "alerts",
+        Types.STRING,
+        Types.POJO(WordValue.class)
+    );
+
+    BroadcastStream controlBroadcast = controlSource
+        .assignTimestampsAndWatermarks(new PeriodicWatermarksWithCurrentTimestamp())
+        .broadcast(stateDescriptor);
+
+    eventsSource.assignTimestampsAndWatermarks(new PeriodicWatermarksWithCurrentTimestamp(10000))
+
 
 
 //    DataStream<String> text = env.socketTextStream("localhost", port, "\n");
@@ -80,14 +97,18 @@ public class WordAlertFlinkJob {
     env.execute("Socket Window WordCount");
   }
 
-  private static FlinkKafkaConsumer getKafkaStreamConsumer(String topic, String server) {
+  private static FlinkKafkaConsumer getKafkaStreamConsumer(
+      String topic,
+      String server,
+      DeserializationSchema deserializer
+  ) {
 
     Properties properties = new Properties();
     properties.setProperty("bootstrap.servers", server);
 
     FlinkKafkaConsumer kafka = new FlinkKafkaConsumer<>(
         topic,
-        new SimpleStringSchema(),
+        deserializer,
         properties
     );
 

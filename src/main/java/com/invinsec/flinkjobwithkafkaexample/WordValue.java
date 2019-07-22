@@ -1,10 +1,15 @@
 package com.invinsec.flinkjobwithkafkaexample;
 
-import lombok.Data;
+import lombok.*;
+import java.io.Serializable;
 
 @Data
-public class WordValue {
+@NoArgsConstructor
+@RequiredArgsConstructor
+@AllArgsConstructor
+public class WordValue implements Serializable {
 
+  @NonNull
   private String word;
 
   private Integer value = 1;

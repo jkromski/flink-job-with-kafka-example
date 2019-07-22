@@ -20,6 +20,8 @@ public class WordValueAlertFunction extends KeyedBroadcastProcessFunction<String
     ) throws Exception {
         WordValue alertOnValue = ctx.getBroadcastState(stateDescriptor).get(value.getWord());
 
+        System.out.println(value.getWord() + ": " + value.getValue());
+
         if (alertOnValue == null && alertOnValue.getValue() <= value.getValue()) {
             out.collect(
                     String.format(

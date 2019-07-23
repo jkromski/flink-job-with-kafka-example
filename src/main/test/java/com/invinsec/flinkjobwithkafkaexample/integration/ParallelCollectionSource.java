@@ -1,11 +1,14 @@
 package com.invinsec.flinkjobwithkafkaexample.integration;
 
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 
-public class ParallelCollectionSource<T> extends RichSourceFunction<T> {
+@Slf4j
+public class ParallelCollectionSource<T> implements SourceFunction<T> {
 
   private int index = 0;
 
@@ -13,7 +16,14 @@ public class ParallelCollectionSource<T> extends RichSourceFunction<T> {
 
   private boolean canceled = false;
 
+  private long interval = 1000;
+
   public ParallelCollectionSource(T... array) {
+    this.list = Arrays.asList(array);
+  }
+
+  public ParallelCollectionSource(long milliSecondsInterval, T... array) {
+    this.interval = milliSecondsInterval < 0 ? 0 : milliSecondsInterval;
     this.list = Arrays.asList(array);
   }
 
@@ -33,9 +43,11 @@ public class ParallelCollectionSource<T> extends RichSourceFunction<T> {
   }
 
   synchronized protected T get() throws InterruptedException {
-    wait(2000);
+    Thread.sleep(interval);
     if (index < list.size()) {
-      return list.get(index++);
+      T item = list.get(index++);
+      System.out.println(Instant.now().toString() + ": receiving: " + item.toString());
+      return item;
     }
     return null;
   }

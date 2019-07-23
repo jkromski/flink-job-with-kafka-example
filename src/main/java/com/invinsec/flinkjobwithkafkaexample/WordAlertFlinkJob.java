@@ -1,7 +1,7 @@
 package com.invinsec.flinkjobwithkafkaexample;
 
 
-import lombok.Data;
+import lombok.Getter;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -16,6 +16,12 @@ import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeW
 import org.apache.flink.streaming.api.windowing.time.Time;
 
 public class WordAlertFlinkJob {
+
+  @Getter
+  protected static long windowSize = 20;
+
+  @Getter
+  protected static long windowSlide = 5;
 
   public static void setup(
     SourceFunction<WordValue> controls,
@@ -51,7 +57,7 @@ public class WordAlertFlinkJob {
     BroadcastStream<WordValue> controlBroadcast = controls.broadcast(stateDescriptor);
 
     SingleOutputStreamOperator<String> output = events.keyBy("word")
-      .window(SlidingProcessingTimeWindows.of(Time.minutes(1), Time.seconds(10)))
+      .window(SlidingProcessingTimeWindows.of(Time.seconds(windowSize), Time.seconds(windowSlide)))
       .reduce(new WordValueSum())
       .keyBy("word")
       .connect(controlBroadcast)

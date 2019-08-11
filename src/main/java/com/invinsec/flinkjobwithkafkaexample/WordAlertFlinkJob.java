@@ -1,7 +1,6 @@
 package com.invinsec.flinkjobwithkafkaexample;
 
 
-import lombok.Data;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;

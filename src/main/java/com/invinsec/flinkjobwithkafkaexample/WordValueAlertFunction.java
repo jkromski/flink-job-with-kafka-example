@@ -22,7 +22,7 @@ public class WordValueAlertFunction extends KeyedBroadcastProcessFunction<String
 
         System.out.println(value.getWord() + ": " + value.getValue());
 
-        if (alertOnValue == null && alertOnValue.getValue() <= value.getValue()) {
+        if (alertOnValue != null && alertOnValue.getValue() <= value.getValue()) {
             out.collect(
                     String.format(
                             "alert for '%s' %d >= %d",

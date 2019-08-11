@@ -23,6 +23,8 @@ public class WordAlertFlinkJob {
   @Getter
   protected static long windowSlide = 5;
 
+  private static StreamExecutionEnvironment executionEnvironment;
+
   public static void setup(
     SourceFunction<WordValue> controls,
     SourceFunction<WordValue> events,
@@ -69,7 +71,12 @@ public class WordAlertFlinkJob {
   }
 
   private static StreamExecutionEnvironment env() {
-    return StreamExecutionEnvironment.getExecutionEnvironment();
+
+    if (executionEnvironment == null) {
+      executionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment();
+    }
+
+    return executionEnvironment;
   }
 
   /**
@@ -79,7 +86,7 @@ public class WordAlertFlinkJob {
    * @throws Exception
    */
   public static JobExecutionResult execute(String jobName) throws Exception {
-    return StreamExecutionEnvironment.getExecutionEnvironment().execute(jobName);
+    return env().execute(jobName);
   }
 }
 

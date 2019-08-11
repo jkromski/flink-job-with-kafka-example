@@ -20,7 +20,7 @@ public class Main {
   final static private String EVENT_QUEUE_NAME = "events";
   final static private String CONTROL_QUEUE_NAME = "controls";
 
-  private static String kafkaServer = "localhost:9092";
+  private static String kafkaServer = "kafka:9092";
 
   public static void main(String[] args) throws Exception {
     WordAlertFlinkJob.setup(getControlSource(), getEventSource(), null);

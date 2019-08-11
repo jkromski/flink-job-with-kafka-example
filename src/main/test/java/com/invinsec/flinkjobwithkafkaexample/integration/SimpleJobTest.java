@@ -10,6 +10,11 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.Test;
 
+import java.time.Instant;
+
+import static com.invinsec.flinkjobwithkafkaexample.WordAlertFlinkJob.getWindowSize;
+import static com.invinsec.flinkjobwithkafkaexample.WordAlertFlinkJob.getWindowSlide;
+import static java.time.Instant.now;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -20,15 +25,22 @@ public class SimpleJobTest extends TestCase {
   public void simple() throws Exception {
 
     StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-    env.setParallelism(1);
+    env.setParallelism(2);
 
-    DataStreamSource<WordValue> controls = env.fromElements(new WordValue("a"));
+    WordValue alertWhen = new WordValue("a", 1);
+
+    DataStreamSource<WordValue> controls = env.fromElements(alertWhen);
+
     DataStreamSource<WordValue> events = env.addSource(
+      // to process a window we need to reach end of it,
+      // that is why 6 elements with element released each second
       new ParallelCollectionSource<WordValue>(
+        1000,
         new WordValue("b"),
+        new WordValue("a"),
         new WordValue("b"),
         new WordValue("c"),
-        new WordValue("a"),
+        new WordValue("c"),
         new WordValue("c")
       ),
       PojoTypeInfo.of(WordValue.class)
@@ -38,6 +50,11 @@ public class SimpleJobTest extends TestCase {
 
     WordAlertFlinkJob.setup(controls, events, sink);
     JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+
+    // wait for next window start to make test consistent
+    waitForWindowToStart(getWindowSlide());
+
+
     getTestCluster().submitJob(jobGraph).get();
     JobResult result = getTestCluster().requestJobResult(jobGraph.getJobID()).join();
 
@@ -48,6 +65,58 @@ public class SimpleJobTest extends TestCase {
       sink.getValues().size()
     );
     assertEquals("alert for 'a' 1 >= 1", sink.getValues().get(0));
+  }
+
+  @Test
+  public void changeControlValueWhenProcessing() throws Exception {
+
+    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    env.setParallelism(2);
+
+    WordValue alertWhen = new WordValue("a", 1);
+
+    DataStreamSource<WordValue> controls = env.addSource(
+      new ParallelCollectionSource<WordValue>(1000,
+        alertWhen,
+        new WordValue("a", 3)
+      ),
+      PojoTypeInfo.of(WordValue.class)
+    );
+
+    DataStreamSource<WordValue> events = env.addSource(
+      // to process a window we need to reach end of it,
+      // that is why 6 elements with element released each second
+      new ParallelCollectionSource<WordValue>(
+        1000,
+        new WordValue("b"),
+        new WordValue("b"),
+        new WordValue("a"),
+        new WordValue("a"),
+        new WordValue("c"),
+        new WordValue("c")
+      ),
+      PojoTypeInfo.of(WordValue.class)
+    );
+
+    CollectSink sink = new CollectSink();
+
+    WordAlertFlinkJob.setup(controls, events, sink);
+    JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+    // wait for next window start to make test consistent
+    long secondsToNextWindow = getWindowSlide() - now().getEpochSecond() % getWindowSlide();
+    System.out.println(now().toString() + ": next window in " + secondsToNextWindow);
+
+    Thread.sleep(secondsToNextWindow * 1000);
+
+    getTestCluster().submitJob(jobGraph).get();
+    JobResult result = getTestCluster().requestJobResult(jobGraph.getJobID()).join();
+
+    assertTrue(result.isSuccess());
+
+    assertEquals(
+      0,
+      sink.getValues().size()
+    );
   }
 
   @Test

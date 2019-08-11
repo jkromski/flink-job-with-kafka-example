@@ -4,6 +4,8 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.util.Collector;
 
+import java.time.Instant;
+
 public class WordValueAlertFunction extends KeyedBroadcastProcessFunction<String, WordValue, WordValue, String> {
 
     private final MapStateDescriptor<String, WordValue> stateDescriptor;
@@ -20,7 +22,7 @@ public class WordValueAlertFunction extends KeyedBroadcastProcessFunction<String
     ) throws Exception {
         WordValue alertOnValue = ctx.getBroadcastState(stateDescriptor).get(value.getWord());
 
-        System.out.println(value.getWord() + ": " + value.getValue());
+        System.out.println(Instant.now().toString() + ": checking: " + value.toString());
 
         if (alertOnValue != null && alertOnValue.getValue() <= value.getValue()) {
             out.collect(

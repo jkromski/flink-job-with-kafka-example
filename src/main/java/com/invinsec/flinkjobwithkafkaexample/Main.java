@@ -5,10 +5,14 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumerBase;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 
 import java.util.Properties;
 import java.util.regex.Pattern;
+
+import static org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumerBase.KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS;
 
 
 public class Main {
@@ -57,7 +61,8 @@ public class Main {
   ) {
 
     Properties properties = new Properties();
-    properties.setProperty("bootstrap.servers", server);
+    properties.setProperty(KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS, "5000");
+    properties.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, server);
 
     FlinkKafkaConsumer<WordValue> kafka = new FlinkKafkaConsumer<>(
       topic,

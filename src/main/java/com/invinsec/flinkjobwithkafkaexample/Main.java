@@ -18,7 +18,7 @@ import static org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumerBase
 public class Main {
 
   final static private String EVENT_QUEUE_NAME = "(.+-)?events";
-  final static private String CONTROL_QUEUE_NAME = "controls";
+  final static private String CONTROL_QUEUE_NAME = "(.+-)?controls";
 
   private static String kafkaServer = "kafka:9092";
 
@@ -36,7 +36,7 @@ public class Main {
   }
 
   private static SourceFunction<WordValue> getControlSource() {
-    return getKafkaStreamConsumer(CONTROL_QUEUE_NAME, kafkaServer, new WordValueDeserializationSchema()
+    return getKafkaStreamConsumer(Pattern.compile(CONTROL_QUEUE_NAME), kafkaServer, new WordValueDeserializationSchema()
     );
   }
 
@@ -44,6 +44,7 @@ public class Main {
 
     Properties properties = new Properties();
     properties.setProperty("bootstrap.servers", server);
+    properties.setProperty(KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS, "5000");
 
     FlinkKafkaProducer<String> kafka = new FlinkKafkaProducer<>(
       topic,
@@ -80,7 +81,8 @@ public class Main {
   ) {
 
     Properties properties = new Properties();
-    properties.setProperty("bootstrap.servers", server);
+    properties.setProperty(KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS, "5000");
+    properties.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, server);
 
     FlinkKafkaConsumer<WordValue> kafka = new FlinkKafkaConsumer<>(
       topicPattern,
